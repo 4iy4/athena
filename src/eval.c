@@ -275,11 +275,12 @@ void eval_store_node_data(const NodeData *data)
 	transposition_table.ptr[key] = *data;
 }
 
-void eval_node_data_init(NodeData *data, int score, int depth, NodeType type, const Position *pos)
+void eval_node_data_init(NodeData *data, int score, int depth, NodeType type, Move best_move, const Position *pos)
 {
 	data->score = score;
 	data->depth = depth;
 	data->type = type;
+	data->best_move = best_move;
 	data->hash = hash(pos);
 }
 

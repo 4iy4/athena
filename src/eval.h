@@ -28,13 +28,14 @@ typedef struct node_data {
 	u8 depth;
 	u8 type;
 	u64 hash;
+	Move best_move;
 } NodeData;
 
 int eval_evaluate(const Position *pos);
 int eval_evaluate_move(Move move, Position *pos);
 bool eval_get_node_data(NodeData *data, const Position *pos);
 void eval_store_node_data(const NodeData *data);
-void eval_node_data_init(NodeData *pos_data, int score, int depth, NodeType type, const Position *pos);
+void eval_node_data_init(NodeData *pos_data, int score, int depth, NodeType type, Move best_move, const Position *pos);
 void eval_finish(void);
 void eval_init(void);
 

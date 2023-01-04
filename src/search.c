@@ -24,13 +24,11 @@ static size_t get_most_promising_move(const Move *moves, size_t len, Position *p
 	size_t best_idx = 0;
 	for (size_t i = 0; i < len; ++i) {
 		const Move move = moves[i];
-		move_do(pos, move);
 		NodeData pos_data;
 		if (eval_get_node_data(&pos_data, pos) && pos_data.type == NODE_TYPE_PV) {
-			move_undo(pos, move);
-			return i;
+			if (move == pos_data.best_move)
+				return i;
 		}
-		move_undo(pos, move);
 		int score = eval_evaluate_move(move, pos);
 		if (score > best_score) {
 			best_idx = i;
@@ -59,10 +57,6 @@ static int quiescence_search(Position *pos, int alpha, int beta, int *nodes)
 		if (!move_is_legal(pos, move) || !move_is_capture(move))
 			continue;
 		move_do(pos, move);
-		if (!is_in_check(pos)) {
-			move_undo(pos, move);
-			continue;
-		}
 		score = -quiescence_search(pos, -beta, -alpha, nodes);
 		move_undo(pos, move);
 		++*nodes;
@@ -75,6 +69,9 @@ static int quiescence_search(Position *pos, int alpha, int beta, int *nodes)
 	return alpha;
 }
 
+/*
+ * It will return INT_MAX on checkmate and 0 on stalemate.
+ */
 static int alpha_beta(Position *pos, int depth, int alpha, int beta, int *nodes)
 {
 	NodeData pos_data;
@@ -86,10 +83,15 @@ static int alpha_beta(Position *pos, int depth, int alpha, int beta, int *nodes)
 	NodeType type = NODE_TYPE_ALL;
 	size_t len = 0;
 	Move *moves = movegen_get_pseudo_legal_moves(pos, &len);
+	if (!len) {
+		if (is_in_check(pos))
+			return INT_MAX;
+		else
+			return 0;
+	}
 	Move *moves_ptr = moves;
-	if (!len)
-		return alpha;
-
+	size_t legal_moves_cnt = 0;
+	Move best_move;
 	do {
 		/* Lazily sort moves instead of doing it all at once, this way
 		 * we avoid wasting time sorting moves of branches that are
@@ -108,12 +110,14 @@ static int alpha_beta(Position *pos, int depth, int alpha, int beta, int *nodes)
 			++moves;
 			continue;
 		}
+		++legal_moves_cnt;
 		move_do(pos, move);
 		int score = -alpha_beta(pos, depth - 1, -beta, -alpha, nodes);
 		move_undo(pos, move);
 		++*nodes;
 		if (score > alpha) {
 			alpha = score;
+			best_move = move;
 			type = NODE_TYPE_PV;
 		}
 		if (alpha >= beta) {
@@ -125,8 +129,14 @@ static int alpha_beta(Position *pos, int depth, int alpha, int beta, int *nodes)
 		++moves;
 	} while (len);
 	free(moves_ptr);
+	if (!legal_moves_cnt) {
+		if (is_in_check(pos))
+			return INT_MAX;
+		else
+			return 0;
+	}
 
-	eval_node_data_init(&pos_data, alpha, depth, type, pos);
+	eval_node_data_init(&pos_data, alpha, depth, type, best_move, pos);
 	eval_store_node_data(&pos_data);
 	return alpha;
 }
@@ -142,7 +152,7 @@ void search_finish(void)
 }
 
 /*
- * It will return 0 in case of checkmate.
+ * It will return 0 in case of checkmate or stalemate.
  */
 Move search_search(const Position *pos)
 {
@@ -152,7 +162,6 @@ Move search_search(const Position *pos)
 	Position *mut_pos = pos_copy(pos);
 	size_t len;
 	Move *moves = movegen_get_pseudo_legal_moves(mut_pos, &len);
-	get_most_promising_move(moves, len, mut_pos);
 	int alpha = INT_MIN + 1, beta = INT_MAX;
 	Move best_move = null_move;
 	int nodes = 0;
@@ -172,7 +181,7 @@ Move search_search(const Position *pos)
 			break;
 	}
 	/* Play any move if no best move was found (probably because all moves
-	 * lead to a checkmate.) */
+	 * lead to a checkmate or stalemate.) */
 	if (best_move == null_move && len != 0) {
 		for (size_t i = 0; i < len; ++i) {
 			if (move_is_legal(mut_pos, moves[i]))
