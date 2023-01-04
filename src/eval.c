@@ -43,6 +43,31 @@ struct transposition_table {
 static u64 zobrist_numbers[ZOBRIST_ARRAY_SIZE];
 
 /*
+ * These tables store the number of possible moves for a piece when the board
+ * contains only that piece, so no occupancy for sliding pieces.
+ */
+static int white_pawn_number_of_possible_moves[64];
+static int black_pawn_number_of_possible_moves[64];
+static int knight_number_of_possible_moves[64];
+static int rook_number_of_possible_moves[64];
+static int bishop_number_of_possible_moves[64];
+static int queen_number_of_possible_moves[64];
+static int king_number_of_possible_moves[64];
+
+static void init_possible_moves_table(void)
+{
+	for (Square sq = A1; sq <= H8; ++sq) {
+		white_pawn_number_of_possible_moves[sq] = movegen_get_number_of_possible_moves(PIECE_WHITE_PAWN, sq);
+		black_pawn_number_of_possible_moves[sq] = movegen_get_number_of_possible_moves(PIECE_BLACK_PAWN, sq);
+		knight_number_of_possible_moves[sq] = movegen_get_number_of_possible_moves(PIECE_WHITE_KNIGHT, sq);
+		rook_number_of_possible_moves[sq] = movegen_get_number_of_possible_moves(PIECE_WHITE_ROOK, sq);
+		bishop_number_of_possible_moves[sq] = movegen_get_number_of_possible_moves(PIECE_WHITE_BISHOP, sq);
+		queen_number_of_possible_moves[sq] = movegen_get_number_of_possible_moves(PIECE_WHITE_QUEEN, sq);
+		king_number_of_possible_moves[sq] = movegen_get_number_of_possible_moves(PIECE_WHITE_KING, sq);
+	}
+}
+
+/*
  * Generate a set of unique random numbers for Zobrist hashing.
  */
 static void init_hash(void)
@@ -53,6 +78,16 @@ static void init_hash(void)
 			if (zobrist_numbers[i] == zobrist_numbers[j])
 				--i;
 		}
+	}
+}
+
+static void init_position_table(void)
+{
+	transposition_table.capacity = 2 << 20;
+	transposition_table.ptr = calloc(transposition_table.capacity, sizeof(NodeData));
+	if (!transposition_table.ptr) {
+		fprintf(stderr, "Could not allocate memory");
+		exit(1);
 	}
 }
 
@@ -88,16 +123,6 @@ static u64 hash(const Position *pos)
 		key ^= ptr[0];
 
 	return key;
-}
-
-static void init_position_table(void)
-{
-	transposition_table.capacity = 2 << 20;
-	transposition_table.ptr = calloc(transposition_table.capacity, sizeof(NodeData));
-	if (!transposition_table.ptr) {
-		fprintf(stderr, "Could not allocate memory");
-		exit(1);
-	}
 }
 
 static void finish_position_table(void)
@@ -182,20 +207,50 @@ int eval_evaluate_move(Move move, Position *pos)
 		[PIECE_TYPE_KING  ] = PIECE_VALUE_PAWN,
 	};
 
+	int score = 0;
+
 	if (move_get_type(move) == MOVE_CAPTURE) {
 		Square sq = move_get_target(move);
 		Piece piece = pos_get_piece_at(pos, sq);
-		PieceType target = pos_get_piece_type(piece);
+		PieceType attacked = pos_get_piece_type(piece);
 
 		sq = move_get_origin(move);
 		piece = pos_get_piece_at(pos, sq);
 		PieceType attacker = pos_get_piece_type(piece);
 
-		int value = target_table[target] + attacker_table[attacker];
-		return value;
-	} else {
-		return 0;
+		score += target_table[attacked] + attacker_table[attacker];
 	}
+
+	const Square target = move_get_target(move);
+	const Square origin = move_get_origin(move);
+	const Piece piece = pos_get_piece_at(pos, origin);
+	const PieceType piece_type = pos_get_piece_type(piece);
+	const Color piece_color = pos_get_side_to_move(pos);
+
+	/* Temporarily remove moving piece so it's not counted as an attacking
+	 * piece. */
+	pos_remove_piece(pos, origin);
+	if (movegen_is_square_attacked(target, !piece_color, pos))
+		score -= target_table[piece_type];
+	else
+		score += 1;
+	pos_place_piece(pos, origin, piece);
+	if (movegen_is_square_attacked(origin, !piece_color, pos))
+		score += 2 * target_table[piece_type];
+
+	static const int *number_of_possible_moves[7] = {
+		[PIECE_TYPE_KNIGHT] = knight_number_of_possible_moves,
+		[PIECE_TYPE_ROOK  ] = rook_number_of_possible_moves,
+		[PIECE_TYPE_BISHOP] = bishop_number_of_possible_moves,
+		[PIECE_TYPE_QUEEN ] = queen_number_of_possible_moves,
+		[PIECE_TYPE_KING  ] = king_number_of_possible_moves,
+	};
+	if (piece_type == PIECE_TYPE_PAWN)
+		score += piece_color == COLOR_WHITE ? pos_get_rank_of_square(target) : (RANK_7 - pos_get_rank_of_square(target));
+	else
+		score += number_of_possible_moves[piece_type][target];
+
+	return score;
 }
 
 /*
@@ -232,6 +287,7 @@ void eval_init(void)
 {
 	init_position_table();
 	init_hash();
+	init_possible_moves_table();
 }
 
 void eval_finish(void)

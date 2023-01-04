@@ -13,24 +13,31 @@
 #include "eval.h"
 #include "rng.h"
 
-static void sort_moves(Move *list, size_t len, Position *pos)
+/*
+ * Return the index of what seems to be the most promising move based on the
+ * evaluation of the move and the transposition table and all the PV nodes are
+ * considered more valuable than any other nodes.
+ */
+static size_t get_most_promising_move(const Move *moves, size_t len, Position *pos)
 {
-	if (!len)
-		return;
-	for (size_t i = 0; i < len - 1; ++i) {
-		size_t promising = i;
-		for (size_t j = i + 1; j < len; ++j) {
-			int pvalue = eval_evaluate_move(list[promising], pos);
-			int jvalue = eval_evaluate_move(list[j], pos);
-			if (pvalue < jvalue)
-				promising = j;
+	int best_score = INT_MIN;
+	size_t best_idx = 0;
+	for (size_t i = 0; i < len; ++i) {
+		const Move move = moves[i];
+		move_do(pos, move);
+		NodeData pos_data;
+		if (eval_get_node_data(&pos_data, pos) && pos_data.type == NODE_TYPE_PV) {
+			move_undo(pos, move);
+			return i;
 		}
-		if (promising != i) {
-			Move tmp = list[i];
-			list[i] = list[promising];
-			list[promising] = tmp;
+		move_undo(pos, move);
+		int score = eval_evaluate_move(move, pos);
+		if (score > best_score) {
+			best_idx = i;
+			best_score = score;
 		}
 	}
+	return best_idx;
 }
 
 static int quiescence_search(Position *pos, int alpha, int beta, int *nodes)
@@ -66,13 +73,30 @@ static int alpha_beta(Position *pos, int depth, int alpha, int beta, int *nodes)
 		return quiescence_search(pos, alpha, beta, nodes);
 
 	NodeType type = NODE_TYPE_ALL;
-	size_t len;
+	size_t len = 0;
 	Move *moves = movegen_get_pseudo_legal_moves(pos, &len);
-	sort_moves(moves, len, pos);
-	for (size_t i = 0; i < len; ++i) {
-		Move move = moves[i];
-		if (!move_is_legal(pos, move))
+	Move *moves_ptr = moves;
+	if (!len)
+		return alpha;
+
+	do {
+		/* Lazily sort moves instead of doing it all at once, this way
+		 * we avoid wasting time sorting moves of branches that are
+		 * pruned. */
+		if (len > 1) {
+			Move first = moves[0];
+			size_t i = get_most_promising_move(moves, len, pos);
+			Move most_promising = moves[i];
+			moves[0] = most_promising;
+			moves[i] = first;
+		}
+
+		Move move = *moves;
+		if (!move_is_legal(pos, move)) {
+			--len;
+			++moves;
 			continue;
+		}
 		move_do(pos, move);
 		int score = -alpha_beta(pos, depth - 1, -beta, -alpha, nodes);
 		move_undo(pos, move);
@@ -85,8 +109,11 @@ static int alpha_beta(Position *pos, int depth, int alpha, int beta, int *nodes)
 			type = NODE_TYPE_CUT;
 			break;
 		}
-	}
-	free(moves);
+
+		--len;
+		++moves;
+	} while (len);
+	free(moves_ptr);
 
 	eval_node_data_init(&pos_data, alpha, depth, type, pos);
 	eval_store_node_data(&pos_data);
@@ -114,7 +141,7 @@ Move search_search(const Position *pos)
 	Position *mut_pos = pos_copy(pos);
 	size_t len;
 	Move *moves = movegen_get_pseudo_legal_moves(mut_pos, &len);
-	sort_moves(moves, len, mut_pos);
+	get_most_promising_move(moves, len, mut_pos);
 	int alpha = INT_MIN + 1, beta = INT_MAX;
 	Move best_move = null_move;
 	int nodes = 0;
