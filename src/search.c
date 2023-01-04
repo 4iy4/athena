@@ -40,6 +40,13 @@ static size_t get_most_promising_move(const Move *moves, size_t len, Position *p
 	return best_idx;
 }
 
+static bool is_in_check(const Position *pos)
+{
+	const Color c = pos_get_side_to_move(pos);
+	const Square king_sq = pos_get_king_square(pos, c);
+	return movegen_is_square_attacked(king_sq, !c, pos);
+}
+
 static int quiescence_search(Position *pos, int alpha, int beta, int *nodes)
 {
 	int score = eval_evaluate(pos);
@@ -52,6 +59,10 @@ static int quiescence_search(Position *pos, int alpha, int beta, int *nodes)
 		if (!move_is_legal(pos, move) || !move_is_capture(move))
 			continue;
 		move_do(pos, move);
+		if (!is_in_check(pos)) {
+			move_undo(pos, move);
+			continue;
+		}
 		score = -quiescence_search(pos, -beta, -alpha, nodes);
 		move_undo(pos, move);
 		++*nodes;
