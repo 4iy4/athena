@@ -207,25 +207,22 @@ int eval_evaluate_move(Move move, Position *pos)
 		[PIECE_TYPE_KING  ] = PIECE_VALUE_PAWN,
 	};
 
-	int score = 0;
-
-	if (move_get_type(move) == MOVE_CAPTURE) {
-		Square sq = move_get_target(move);
-		Piece piece = pos_get_piece_at(pos, sq);
-		PieceType attacked = pos_get_piece_type(piece);
-
-		sq = move_get_origin(move);
-		piece = pos_get_piece_at(pos, sq);
-		PieceType attacker = pos_get_piece_type(piece);
-
-		score += target_table[attacked] + attacker_table[attacker];
-	}
-
 	const Square target = move_get_target(move);
 	const Square origin = move_get_origin(move);
 	const Piece piece = pos_get_piece_at(pos, origin);
 	const PieceType piece_type = pos_get_piece_type(piece);
 	const Color piece_color = pos_get_side_to_move(pos);
+
+	int score = 0;
+
+	if (move_get_type(move) == MOVE_CAPTURE) {
+		const Piece attacked_piece = pos_get_piece_at(pos, target);
+		const Piece attacker_piece = pos_get_piece_at(pos, origin);
+		const PieceType attacked = pos_get_piece_type(attacked_piece);
+		const PieceType attacker = pos_get_piece_type(attacker_piece);
+
+		score += target_table[attacked] + attacker_table[attacker];
+	}
 
 	/* Temporarily remove moving piece so it's not counted as an attacking
 	 * piece. */
