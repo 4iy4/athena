@@ -78,23 +78,6 @@ static u64 hash(const Position *pos)
 	return key;
 }
 
-static void init_position_table(void)
-{
-	transposition_table.capacity = 2 << 20;
-	transposition_table.ptr = calloc(transposition_table.capacity, sizeof(NodeData));
-	if (!transposition_table.ptr) {
-		fprintf(stderr, "Could not allocate memory");
-		exit(1);
-	}
-}
-
-static void finish_position_table(void)
-{
-	transposition_table.capacity = 0;
-	free(transposition_table.ptr);
-	transposition_table.ptr = NULL;
-}
-
 /*
  * It will return true if the node data is in the transposition table table and
  * false otherwise.
@@ -128,11 +111,19 @@ void tt_entry_init(NodeData *data, int score, int depth, NodeType type, Move bes
 
 void tt_init(void)
 {
-	init_position_table();
 	init_hash();
+
+	transposition_table.capacity = 2 << 20;
+	transposition_table.ptr = calloc(transposition_table.capacity, sizeof(NodeData));
+	if (!transposition_table.ptr) {
+		fprintf(stderr, "Could not allocate memory");
+		exit(1);
+	}
 }
 
 void tt_finish(void)
 {
-	finish_position_table();
+	transposition_table.capacity = 0;
+	free(transposition_table.ptr);
+	transposition_table.ptr = NULL;
 }
