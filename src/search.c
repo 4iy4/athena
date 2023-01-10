@@ -10,6 +10,7 @@
 #include "pos.h"
 #include "move.h"
 #include "movegen.h"
+#include "tt.h"
 #include "eval.h"
 #include "rng.h"
 
@@ -25,7 +26,7 @@ static size_t get_most_promising_move(const Move *moves, size_t len, Position *p
 	for (size_t i = 0; i < len; ++i) {
 		const Move move = moves[i];
 		NodeData pos_data;
-		if (eval_get_node_data(&pos_data, pos) && pos_data.type == NODE_TYPE_PV) {
+		if (tt_get(&pos_data, pos) && pos_data.type == NODE_TYPE_PV) {
 			if (move == pos_data.best_move)
 				return i;
 		}
@@ -75,7 +76,7 @@ static int quiescence_search(Position *pos, int alpha, int beta, int *nodes)
 static int alpha_beta(Position *pos, int depth, int alpha, int beta, int *nodes)
 {
 	NodeData pos_data;
-	if (eval_get_node_data(&pos_data, pos) && pos_data.depth >= depth)
+	if (tt_get(&pos_data, pos) && pos_data.depth >= depth)
 		return pos_data.score;
 	if (!depth)
 		return quiescence_search(pos, alpha, beta, nodes);
@@ -136,19 +137,20 @@ static int alpha_beta(Position *pos, int depth, int alpha, int beta, int *nodes)
 			return 0;
 	}
 
-	eval_node_data_init(&pos_data, alpha, depth, type, best_move, pos);
-	eval_store_node_data(&pos_data);
+	tt_entry_init(&pos_data, alpha, depth, type, best_move, pos);
+	tt_store(&pos_data);
 	return alpha;
 }
 
 void search_init(void)
 {
+	tt_init();
 	eval_init();
 }
 
 void search_finish(void)
 {
-	eval_finish();
+	tt_finish();
 }
 
 /*
