@@ -721,18 +721,12 @@ Move *movegen_get_pseudo_legal_moves(const Position *pos, size_t *len)
 
 /*
  * Return the number of possible moves on an empty board containing only the
- * moving piece. It will return -1 for invalid pawn positions. The color of the
- * piece is only used for pawns so for any other piece the result will be the
- * same for either white or black.
+ * moving piece. The color of the piece is only used for pawns so for any other
+ * piece the result will be the same for either white or black.
  */
 int movegen_get_number_of_possible_moves(Piece piece, Square sq) {
 	const PieceType pt = pos_get_piece_type(piece);
 	const Color c = pos_get_piece_color(piece);
-	if (pt == PIECE_TYPE_PAWN) {
-		const Rank rank = pos_get_rank_of_square(sq);
-		if (rank == RANK_1 || rank == RANK_8)
-			return -1;
-	}
 	u64 targets = 0;
 	switch (pt) {
 	case PIECE_TYPE_PAWN:
