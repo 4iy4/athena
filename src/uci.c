@@ -126,10 +126,8 @@ static Move lan_to_move(const char *lan, const Position *pos, bool *success)
  */
 static int str_to_option_value(union option_value *value, const char *name, const char *str)
 {
-	const struct option *op;
-
 	for (size_t i = 0; i < sizeof(options) / sizeof(options[0]); ++i) {
-		op = &options[i];
+		const struct option *op = &options[i];
 		if (!strcmp(name, op->name)) {
 			switch (op->type) {
 			case OPTION_TYPE_BOOLEAN:
