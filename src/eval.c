@@ -25,13 +25,13 @@ enum piece_values {
  * These tables store the number of possible moves for a piece when the board
  * contains only that piece, so no occupancy for sliding pieces.
  */
-static int white_pawn_number_of_possible_moves[64];
-static int black_pawn_number_of_possible_moves[64];
-static int knight_number_of_possible_moves[64];
-static int rook_number_of_possible_moves[64];
-static int bishop_number_of_possible_moves[64];
-static int queen_number_of_possible_moves[64];
-static int king_number_of_possible_moves[64];
+static i8 white_pawn_number_of_possible_moves[64];
+static i8 black_pawn_number_of_possible_moves[64];
+static i8 knight_number_of_possible_moves[64];
+static i8 rook_number_of_possible_moves[64];
+static i8 bishop_number_of_possible_moves[64];
+static i8 queen_number_of_possible_moves[64];
+static i8 king_number_of_possible_moves[64];
 
 static void init_possible_moves_table(void)
 {
@@ -149,7 +149,7 @@ int eval_evaluate_move(Move move, Position *pos)
 	if (movegen_is_square_attacked(origin, !piece_color, pos))
 		score += 2 * target_table[piece_type];
 
-	static const int *number_of_possible_moves[7] = {
+	static const i8 *number_of_possible_moves[7] = {
 		[PIECE_TYPE_KNIGHT] = knight_number_of_possible_moves,
 		[PIECE_TYPE_ROOK  ] = rook_number_of_possible_moves,
 		[PIECE_TYPE_BISHOP] = bishop_number_of_possible_moves,
