@@ -154,16 +154,21 @@ void search_finish(void)
 }
 
 /*
- * It will return 0 in case of checkmate or stalemate.
+ * It will return 0 in case of checkmate or stalemate. If depth is less than or
+ * equal to 0 the function will use a default depth.
  */
-Move search_search(const Position *pos)
+Move search_search(const Position *pos, int depth)
 {
-	const int depth = 6;
+	const int default_depth = 6;
 	const Move null_move = 0;
 
 	Position *mut_pos = pos_copy(pos);
+	if (depth <= 0)
+		depth = default_depth;
+
 	size_t len;
 	Move *moves = movegen_get_pseudo_legal_moves(mut_pos, &len);
+
 	int alpha = INT_MIN + 1, beta = INT_MAX;
 	Move best_move = null_move;
 	int nodes = 0;

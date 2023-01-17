@@ -231,12 +231,34 @@ static void quit(void)
 
 static void go(void)
 {
-	if (current_position) {
-		Move move = search_search(current_position);
-		bestmove(move);
-	} else {
+	if (!current_position) {
 		fprintf(stderr, "go command sent before position command.\n");
+		return;
 	}
+
+	int depth = 0;
+
+	char *str = strtok(NULL, " ");
+	while (str) {
+		if (!strcmp(str, "depth")) {
+			str = strtok(NULL, " ");
+			if (!str) {
+				fprintf(stderr, "Invalid UCI command.\n");
+				return;
+			}
+			char *endptr = NULL;
+			errno = 0;
+			depth = strtol(str, &endptr, 10);
+			if (errno == ERANGE || endptr == str || *endptr != '\0')
+				depth = 0;
+		} else {
+			break;
+		}
+		str = strtok(NULL, " ");
+	}
+
+	Move move = search_search(current_position, depth);
+	bestmove(move);
 }
 
 static void ucinewgame(void)
