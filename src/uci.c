@@ -257,7 +257,7 @@ static void go(void)
 		str = strtok(NULL, " ");
 	}
 
-	Move move = search_search(current_position, depth);
+	Move move = search_get_best_move(current_position, depth);
 	bestmove(move);
 }
 
