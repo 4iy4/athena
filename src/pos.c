@@ -491,6 +491,13 @@ int pos_get_number_of_pieces(const Position *pos, Piece piece)
 	return count_bits(bb);
 }
 
+int pos_get_number_of_pieces_of_color(const Position *pos, Color c)
+{
+	const u64 bb = pos_get_color_bitboard(pos, c);
+
+	return count_bits(bb);
+}
+
 u64 pos_get_piece_bitboard(const Position *pos, Piece piece)
 {
 	const PieceType type = pos_get_piece_type(piece);

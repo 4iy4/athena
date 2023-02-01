@@ -99,6 +99,7 @@ Color pos_get_side_to_move(const Position *pos);
 Square pos_get_king_square(const Position *pos, Color c);
 Piece pos_get_piece_at(const Position *pos, Square sq);
 int pos_get_number_of_pieces(const Position *pos, Piece piece);
+int pos_get_number_of_pieces_of_color(const Position *pos, Color c);
 u64 pos_get_piece_bitboard(const Position *pos, Piece piece);
 u64 pos_get_color_bitboard(const Position *pos, Color c);
 void pos_backtrack_irreversible_state(Position *pos);

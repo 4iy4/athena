@@ -33,6 +33,96 @@ static i8 bishop_number_of_possible_moves[64];
 static i8 queen_number_of_possible_moves[64];
 static i8 king_number_of_possible_moves[64];
 
+/*
+ * The square tables are indexed by the square number so even though the code
+ * looks like a chess board the top row is actually the rank 1.
+ */
+
+static i8 white_pawn_sq_table[64] = {
+	 0,  0,   0,   0,   0,   0,  0,  0,
+	 5, 10,  10, -20, -20,  10, 10,  5,
+	 5, -5, -10,   0,   0, -10, -5,  5,
+	 0,  0,   0,  20,  20,   0,  0,  0,
+	 5,  5,  10,  25,  25,  10,  5,  5,
+	10, 10,  20,  30,  30,  20, 10, 10,
+	50, 50,  50,  50,  50,  50, 50, 50,
+	 0,  0,   0,   0,   0,   0,  0,  0,
+};
+
+static i8 white_knight_sq_table[64] = {
+	-50, -40, -30, -30, -30, -30, -40, -50,
+	-40, -20,   0,   5,   5,   0, -20, -40,
+	-30,   5,  10,  15,  15,  10,   5, -30,
+	-30,   0,  15,  20,  20,  15,   0, -30,
+	-30,   5,  15,  20,  20,  15,   5, -30,
+	-30,   0,  10,  15,  15,  10,   0, -30,
+	-40, -20,   0,   0,   0,   0, -20, -40,
+	-50, -40, -30, -30, -30, -30, -40, -50,
+};
+
+static i8 white_bishop_sq_table[64] = {
+	-20, -10, -10, -10, -10, -10, -10, -20,
+	-10,   5,   0,   0,   0,   0,   5, -10,
+	-10,  10,  10,  10,  10,  10,  10, -10,
+	-10,   0,  10,  10,  10,  10,   0, -10,
+	-10,   5,   5,  10,  10,   5,   5, -10,
+	-10,   0,   5,  10,  10,   5,   0, -10,
+	-10,   0,   0,   0,   0,   0,   0, -10,
+	-20, -10, -10, -10, -10, -10, -10, -20,
+};
+
+static i8 white_rook_sq_table[64] = {
+	 0,  0,  0,  5,  5,  0,  0,  0,
+	-5,  0,  0,  0,  0,  0,  0, -5,
+	-5,  0,  0,  0,  0,  0,  0, -5,
+	-5,  0,  0,  0,  0,  0,  0, -5,
+	-5,  0,  0,  0,  0,  0,  0, -5,
+	-5,  0,  0,  0,  0,  0,  0, -5,
+	 5, 10, 10, 10, 10, 10, 10,  5,
+	 0,  0,  0,  0,  0,  0,  0,  0,
+};
+
+static i8 white_queen_sq_table[64] = {
+	-20, -10, -10, -5, -5, -10, -10, -20,
+	-10,   0,   5,  0,  0,   0,   0, -10,
+	-10,   5,   5,  5,  5,   5,   0, -10,
+	  0,   0,   5,  5,  5,   5,   0,  -5,
+	 -5,   0,   5,  5,  5,   5,   0,  -5,
+	-10,   0,   5,  5,  5,   5,   0, -10,
+	-10,   0,   0,  0,  0,   0,   0, -10,
+	-20, -10, -10, -5, -5, -10, -10, -20,
+};
+
+static i8 white_king_middle_game_sq_table[64] = {
+	 20,  30,  10,   0,   0,  10,  30,  20,
+	 20,  20,   0,   0,   0,   0,  20,  20,
+	-10, -20, -20, -20, -20, -20, -20, -10,
+	-20, -30, -30, -40, -40, -30, -30, -20,
+	-30, -40, -40, -50, -50, -40, -40, -30,
+	-30, -40, -40, -50, -50, -40, -40, -30,
+	-30, -40, -40, -50, -50, -40, -40, -30,
+	-30, -40, -40, -50, -50, -40, -40, -30,
+};
+
+static i8 white_king_end_game_sq_table[64] = {
+	-50, -30, -30, -30, -30, -30, -30, -50,
+	-30, -30,   0,   0,   0,   0, -30, -30,
+	-30, -10,  20,  30,  30,  20, -10, -30,
+	-30, -10,  30,  40,  40,  30, -10, -30,
+	-30, -10,  30,  40,  40,  30, -10, -30,
+	-30, -10,  20,  30,  30,  20, -10, -30,
+	-30, -20, -10,   0,   0, -10, -20, -30,
+	-50, -40, -30, -20, -20, -30, -40, -50,
+};
+
+static i8 black_pawn_sq_table[64];
+static i8 black_knight_sq_table[64];
+static i8 black_bishop_sq_table[64];
+static i8 black_rook_sq_table[64];
+static i8 black_queen_sq_table[64];
+static i8 black_king_middle_game_sq_table[64];
+static i8 black_king_end_game_sq_table[64];
+
 static void init_possible_moves_table(void)
 {
 	for (Square sq = A1; sq <= H8; ++sq) {
@@ -44,6 +134,93 @@ static void init_possible_moves_table(void)
 		queen_number_of_possible_moves[sq] = movegen_get_number_of_possible_moves(PIECE_WHITE_QUEEN, sq);
 		king_number_of_possible_moves[sq] = movegen_get_number_of_possible_moves(PIECE_WHITE_KING, sq);
 	}
+}
+
+/*
+ * The square tables for black pieces has the same values as the ones for white
+ * pieces but the board is flipped, so this function uses the square tables of
+ * white pieces to initialize the square tables of black pieces.
+ */
+static void init_square_tables(void)
+{
+	i8 *const table_pairs[7][2] = {
+		{white_pawn_sq_table, black_pawn_sq_table},
+		{white_knight_sq_table, black_knight_sq_table},
+		{white_bishop_sq_table, black_bishop_sq_table},
+		{white_rook_sq_table, black_rook_sq_table},
+		{white_queen_sq_table, black_queen_sq_table},
+		{white_king_middle_game_sq_table, black_king_middle_game_sq_table},
+		{white_king_end_game_sq_table, black_king_end_game_sq_table},
+	};
+
+	for (size_t i = 0; i < sizeof(table_pairs) / sizeof(table_pairs[0]); ++i) {
+		const i8 *white_table = table_pairs[i][0];
+		i8 *black_table = table_pairs[i][1];
+		for (size_t rank = RANK_1; rank <= RANK_8; ++rank) {
+			for (size_t file = FILE_A; file <= FILE_H; ++file) {
+				const Square sq = pos_file_rank_to_square(file, rank);
+				const Rank opposite_rank = RANK_8 - rank;
+				const Square opposite_sq = pos_file_rank_to_square(file, opposite_rank);
+				black_table[opposite_sq] = white_table[sq];
+			}
+		}
+	}
+}
+
+static bool is_endgame(const Position *pos)
+{
+	if (pos_get_number_of_pieces_of_color(pos, COLOR_WHITE) < 5 ||
+	    pos_get_number_of_pieces_of_color(pos, COLOR_BLACK) < 5)
+	    return true;
+	return false;
+}
+
+static int compute_positioning(const Position *pos)
+{
+	const Color color = pos_get_side_to_move(pos);
+	const i8 *square_tables[] = {
+		[PIECE_WHITE_PAWN] = white_pawn_sq_table, [PIECE_BLACK_PAWN] = black_pawn_sq_table,
+		[PIECE_WHITE_KNIGHT] = white_knight_sq_table, [PIECE_BLACK_KNIGHT] = black_knight_sq_table,
+		[PIECE_WHITE_BISHOP] = white_bishop_sq_table, [PIECE_BLACK_BISHOP] = black_bishop_sq_table,
+		[PIECE_WHITE_ROOK] = white_rook_sq_table, [PIECE_BLACK_ROOK] = black_rook_sq_table,
+		[PIECE_WHITE_QUEEN] = white_queen_sq_table, [PIECE_BLACK_QUEEN] = black_queen_sq_table,
+	};
+
+	int score = 0;
+
+	for (PieceType piece_type = PIECE_TYPE_PAWN; piece_type <= PIECE_TYPE_QUEEN; ++piece_type) {
+		Piece piece = pos_make_piece(piece_type, color);
+		const i8 *table = square_tables[piece];
+		u64 bb = pos_get_piece_bitboard(pos, piece);
+		while (bb) {
+			const Square sq = get_index_of_first_bit_and_unset(&bb);
+			score += table[sq];
+		}
+
+		piece = pos_make_piece(piece_type, !color);
+		table = square_tables[piece];
+		bb = pos_get_piece_bitboard(pos, piece);
+		while (bb) {
+			const Square sq = get_index_of_first_bit_and_unset(&bb);
+			score -= table[sq];
+		}
+	}
+
+	const i8 *king_square_tables[] = {
+		[PIECE_WHITE_KING] = white_king_middle_game_sq_table,
+		[PIECE_BLACK_KING] = black_king_middle_game_sq_table,
+	};
+	if (is_endgame(pos)) {
+		square_tables[PIECE_WHITE_KING] = white_king_end_game_sq_table;
+		square_tables[PIECE_BLACK_KING] = black_king_end_game_sq_table;
+	}
+
+	Square sq = pos_get_king_square(pos, color);
+	score += king_square_tables[PIECE_WHITE_KING][sq];
+	sq = pos_get_king_square(pos, !color);
+	score -= king_square_tables[PIECE_BLACK_KING][sq];
+
+	return score;
 }
 
 static int compute_mobility(const Position *pos)
@@ -95,11 +272,14 @@ static int compute_material(const Position *pos)
 
 int eval_evaluate(const Position *pos)
 {
-	const int material_weight = 3;
+	const int material_weight = 4;
+	const int mobility_weight = 2;
 	const int material = compute_material(pos);
 	const int mobility = compute_mobility(pos);
+	const int positioning = compute_positioning(pos);
 
-	return material_weight * material + mobility;
+	return material_weight * material +
+	       mobility_weight * mobility + positioning;
 }
 
 int eval_evaluate_move(Move move, Position *pos)
@@ -167,4 +347,5 @@ int eval_evaluate_move(Move move, Position *pos)
 void eval_init(void)
 {
 	init_possible_moves_table();
+	init_square_tables();
 }
