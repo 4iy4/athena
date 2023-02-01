@@ -14,6 +14,8 @@
 #include "eval.h"
 #include "rng.h"
 
+static const int INFINITE = SHRT_MAX;
+
 /*
  * Return the index of what seems to be the most promising move based on the
  * evaluation of the move and the transposition table and all the PV nodes are
@@ -21,7 +23,7 @@
  */
 static size_t get_most_promising_move(const Move *moves, size_t len, Position *pos)
 {
-	int best_score = INT_MIN;
+	int best_score = -INFINITE;
 	size_t best_idx = 0;
 	for (size_t i = 0; i < len; ++i) {
 		const Move move = moves[i];
@@ -71,7 +73,7 @@ static int quiescence_search(Position *pos, int alpha, int beta, int *nodes)
 }
 
 /*
- * It will return INT_MAX on checkmate and 0 on stalemate.
+ * It will return INFINITE on checkmate and 0 on stalemate.
  */
 static int alpha_beta(Position *pos, int depth, int alpha, int beta, int *nodes)
 {
@@ -86,7 +88,7 @@ static int alpha_beta(Position *pos, int depth, int alpha, int beta, int *nodes)
 	Move *moves = movegen_get_pseudo_legal_moves(pos, &len);
 	if (!len) {
 		if (is_in_check(pos))
-			return INT_MAX;
+			return INFINITE;
 		else
 			return 0;
 	}
@@ -132,7 +134,7 @@ static int alpha_beta(Position *pos, int depth, int alpha, int beta, int *nodes)
 	free(moves_ptr);
 	if (!legal_moves_cnt) {
 		if (is_in_check(pos))
-			return INT_MAX;
+			return INFINITE;
 		else
 			return 0;
 	}
@@ -160,7 +162,7 @@ static Move search(Position *pos, int depth)
 	size_t len;
 	Move *moves = movegen_get_pseudo_legal_moves(pos, &len);
 
-	int alpha = INT_MIN + 1, beta = INT_MAX;
+	int alpha = -INFINITE, beta = INFINITE;
 	Move best_move = null_move;
 	int nodes = 0;
 	for (size_t i = 0; i < len; ++i) {
@@ -198,7 +200,7 @@ static Move search(Position *pos, int depth)
  */
 Move search_get_best_move(const Position *pos, int depth)
 {
-	const int default_depth = 7;
+	const int default_depth = 6;
 	const Move null_move = 0;
 
 	Position *mut_pos = pos_copy(pos);
