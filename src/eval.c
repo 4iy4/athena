@@ -352,8 +352,7 @@ int eval_evaluate_move(Move move, Position *pos)
 			king_square_tables[PIECE_BLACK_KING] = black_king_end_game_sq_table;
 		score += king_square_tables[piece][target];
 		score -= king_square_tables[piece][origin];
-	}
-	if (piece_type != PIECE_TYPE_KING) {
+	} else {
 		score += square_tables[piece][target];
 		score -= square_tables[piece][origin];
 	}
