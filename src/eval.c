@@ -167,23 +167,15 @@ static void init_square_tables(void)
 	}
 }
 
-static bool is_endgame(const Position *pos)
-{
-	if (pos_get_number_of_pieces_of_color(pos, COLOR_WHITE) < 5 ||
-	    pos_get_number_of_pieces_of_color(pos, COLOR_BLACK) < 5)
-	    return true;
-	return false;
-}
-
 static int compute_positioning(const Position *pos)
 {
 	const Color color = pos_get_side_to_move(pos);
 	const i8 *square_tables[] = {
-		[PIECE_WHITE_PAWN] = white_pawn_sq_table, [PIECE_BLACK_PAWN] = black_pawn_sq_table,
+		[PIECE_WHITE_PAWN  ] = white_pawn_sq_table,   [PIECE_BLACK_PAWN  ] = black_pawn_sq_table,
 		[PIECE_WHITE_KNIGHT] = white_knight_sq_table, [PIECE_BLACK_KNIGHT] = black_knight_sq_table,
 		[PIECE_WHITE_BISHOP] = white_bishop_sq_table, [PIECE_BLACK_BISHOP] = black_bishop_sq_table,
-		[PIECE_WHITE_ROOK] = white_rook_sq_table, [PIECE_BLACK_ROOK] = black_rook_sq_table,
-		[PIECE_WHITE_QUEEN] = white_queen_sq_table, [PIECE_BLACK_QUEEN] = black_queen_sq_table,
+		[PIECE_WHITE_ROOK  ] = white_rook_sq_table,   [PIECE_BLACK_ROOK  ] = black_rook_sq_table,
+		[PIECE_WHITE_QUEEN ] = white_queen_sq_table,  [PIECE_BLACK_QUEEN ] = black_queen_sq_table,
 	};
 
 	int score = 0;
@@ -210,10 +202,10 @@ static int compute_positioning(const Position *pos)
 		[PIECE_WHITE_KING] = white_king_middle_game_sq_table,
 		[PIECE_BLACK_KING] = black_king_middle_game_sq_table,
 	};
-	if (is_endgame(pos)) {
-		square_tables[PIECE_WHITE_KING] = white_king_end_game_sq_table;
-		square_tables[PIECE_BLACK_KING] = black_king_end_game_sq_table;
-	}
+	if (pos_get_number_of_pieces_of_color(pos, COLOR_WHITE) < 5)
+		king_square_tables[PIECE_WHITE_KING] = white_king_end_game_sq_table;
+	if (pos_get_number_of_pieces_of_color(pos, COLOR_BLACK) < 5)
+		king_square_tables[PIECE_BLACK_KING] = black_king_end_game_sq_table;
 
 	Square sq = pos_get_king_square(pos, color);
 	score += king_square_tables[PIECE_WHITE_KING][sq];
@@ -327,7 +319,7 @@ int eval_evaluate_move(Move move, Position *pos)
 		score += 1;
 	pos_place_piece(pos, origin, piece);
 	if (movegen_is_square_attacked(origin, !piece_color, pos))
-		score += 2 * target_table[piece_type];
+		score += target_table[piece_type];
 
 	static const i8 *number_of_possible_moves[7] = {
 		[PIECE_TYPE_KNIGHT] = knight_number_of_possible_moves,
@@ -340,6 +332,31 @@ int eval_evaluate_move(Move move, Position *pos)
 		score += piece_color == COLOR_WHITE ? pos_get_rank_of_square(target) : (RANK_7 - pos_get_rank_of_square(target));
 	else
 		score += number_of_possible_moves[piece_type][target];
+
+	const i8 *square_tables[] = {
+		[PIECE_WHITE_PAWN  ] = white_pawn_sq_table,   [PIECE_BLACK_PAWN  ] = black_pawn_sq_table,
+		[PIECE_WHITE_KNIGHT] = white_knight_sq_table, [PIECE_BLACK_KNIGHT] = black_knight_sq_table,
+		[PIECE_WHITE_BISHOP] = white_bishop_sq_table, [PIECE_BLACK_BISHOP] = black_bishop_sq_table,
+		[PIECE_WHITE_ROOK  ] = white_rook_sq_table,   [PIECE_BLACK_ROOK  ] = black_rook_sq_table,
+		[PIECE_WHITE_QUEEN ] = white_queen_sq_table,  [PIECE_BLACK_QUEEN ] = black_queen_sq_table,
+	};
+
+	if (piece_type == PIECE_TYPE_KING) {
+		const i8 *king_square_tables[] = {
+			[PIECE_WHITE_KING] = white_king_middle_game_sq_table,
+			[PIECE_BLACK_KING] = black_king_middle_game_sq_table,
+		};
+		if (pos_get_number_of_pieces_of_color(pos, COLOR_WHITE) < 5)
+			king_square_tables[PIECE_WHITE_KING] = white_king_end_game_sq_table;
+		if (pos_get_number_of_pieces_of_color(pos, COLOR_BLACK) < 5)
+			king_square_tables[PIECE_BLACK_KING] = black_king_end_game_sq_table;
+		score += king_square_tables[piece][target];
+		score -= king_square_tables[piece][origin];
+	}
+	if (piece_type != PIECE_TYPE_KING) {
+		score += square_tables[piece][target];
+		score -= square_tables[piece][origin];
+	}
 
 	return score;
 }

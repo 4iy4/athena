@@ -430,6 +430,7 @@ static int get_number_of_moves(const MoveStack *stack)
 	return stack->index;
 }
 
+// 2k5/8/5Pp1/8/8/8/8/2K5 w - - 0 1
 static void add_pseudo_legal_pawn_moves(MoveStack *move_stack,
 					const Position *pos)
 {
