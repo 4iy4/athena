@@ -123,6 +123,47 @@ static i8 black_queen_sq_table[64];
 static i8 black_king_middle_game_sq_table[64];
 static i8 black_king_end_game_sq_table[64];
 
+const int capture_target_score_table[6] = {
+	[PIECE_TYPE_PAWN  ] = PIECE_VALUE_PAWN,
+	[PIECE_TYPE_KNIGHT] = PIECE_VALUE_KNIGHT,
+	[PIECE_TYPE_BISHOP] = PIECE_VALUE_BISHOP,
+	[PIECE_TYPE_ROOK  ] = PIECE_VALUE_ROOK,
+	[PIECE_TYPE_QUEEN ] = PIECE_VALUE_QUEEN,
+	[PIECE_TYPE_KING  ] = PIECE_VALUE_KING,
+};
+const int capture_attacker_score_table[6] = {
+	[PIECE_TYPE_PAWN  ] = PIECE_VALUE_KING,
+	[PIECE_TYPE_KNIGHT] = PIECE_VALUE_QUEEN,
+	[PIECE_TYPE_BISHOP] = PIECE_VALUE_ROOK,
+	[PIECE_TYPE_ROOK  ] = PIECE_VALUE_BISHOP,
+	[PIECE_TYPE_QUEEN ] = PIECE_VALUE_KNIGHT,
+	[PIECE_TYPE_KING  ] = PIECE_VALUE_PAWN,
+};
+static int average_mvv_lva_score;
+
+static int factorial(int n)
+{
+	if (n == 0)
+		return 1;
+	return n * factorial(n - 1);
+}
+
+/*
+ * Initialize the average MVV-LVA score considering all possible pairs of
+ * attacker and target.
+ */
+static int init_average_mvv_lva_score(void)
+{
+	const size_t num_pieces = 6;
+	int sum = 0;
+	for (size_t i = 0; i < num_pieces; ++i) {
+		for (size_t j = 0; j < num_pieces; ++j)
+			sum += capture_target_score_table[i] + capture_attacker_score_table[j];
+	}
+	int combinations = factorial(num_pieces) / (factorial(2) * factorial(num_pieces - 2));
+	return sum / combinations;
+}
+
 static void init_possible_moves_table(void)
 {
 	for (Square sq = A1; sq <= H8; ++sq) {
@@ -274,25 +315,25 @@ int eval_evaluate(const Position *pos)
 	       mobility_weight * mobility + positioning;
 }
 
+int eval_get_average_mvv_lva_score(void)
+{
+	return average_mvv_lva_score;
+}
+
+int eval_compute_mvv_lva_score(Move move, const Position *pos)
+{
+	const Square target = move_get_target(move);
+	const Square origin = move_get_origin(move);
+	const Piece attacked_piece = pos_get_piece_at(pos, target);
+	const Piece attacker_piece = pos_get_piece_at(pos, origin);
+	const PieceType attacked = pos_get_piece_type(attacked_piece);
+	const PieceType attacker = pos_get_piece_type(attacker_piece);
+
+	return capture_target_score_table[attacked] + capture_attacker_score_table[attacker];
+}
+
 int eval_evaluate_move(Move move, Position *pos)
 {
-	const int target_table[6] = {
-		[PIECE_TYPE_PAWN  ] = PIECE_VALUE_PAWN,
-		[PIECE_TYPE_KNIGHT] = PIECE_VALUE_KNIGHT,
-		[PIECE_TYPE_BISHOP] = PIECE_VALUE_BISHOP,
-		[PIECE_TYPE_ROOK  ] = PIECE_VALUE_ROOK,
-		[PIECE_TYPE_QUEEN ] = PIECE_VALUE_QUEEN,
-		[PIECE_TYPE_KING  ] = PIECE_VALUE_KING,
-	};
-	const int attacker_table[6] = {
-		[PIECE_TYPE_PAWN  ] = PIECE_VALUE_KING,
-		[PIECE_TYPE_KNIGHT] = PIECE_VALUE_QUEEN,
-		[PIECE_TYPE_BISHOP] = PIECE_VALUE_ROOK,
-		[PIECE_TYPE_ROOK  ] = PIECE_VALUE_BISHOP,
-		[PIECE_TYPE_QUEEN ] = PIECE_VALUE_KNIGHT,
-		[PIECE_TYPE_KING  ] = PIECE_VALUE_PAWN,
-	};
-
 	const Square target = move_get_target(move);
 	const Square origin = move_get_origin(move);
 	const Piece piece = pos_get_piece_at(pos, origin);
@@ -301,25 +342,19 @@ int eval_evaluate_move(Move move, Position *pos)
 
 	int score = 0;
 
-	if (move_get_type(move) == MOVE_CAPTURE) {
-		const Piece attacked_piece = pos_get_piece_at(pos, target);
-		const Piece attacker_piece = pos_get_piece_at(pos, origin);
-		const PieceType attacked = pos_get_piece_type(attacked_piece);
-		const PieceType attacker = pos_get_piece_type(attacker_piece);
-
-		score += target_table[attacked] + attacker_table[attacker];
-	}
+	if (move_get_type(move) == MOVE_CAPTURE)
+		score += eval_compute_mvv_lva_score(move, pos);
 
 	/* Temporarily remove moving piece so it's not counted as an attacking
 	 * piece. */
 	pos_remove_piece(pos, origin);
 	if (movegen_is_square_attacked(target, !piece_color, pos))
-		score -= target_table[piece_type];
+		score -= capture_target_score_table[piece_type];
 	else
 		score += 1;
 	pos_place_piece(pos, origin, piece);
 	if (movegen_is_square_attacked(origin, !piece_color, pos))
-		score += target_table[piece_type];
+		score += capture_target_score_table[piece_type];
 
 	static const i8 *number_of_possible_moves[7] = {
 		[PIECE_TYPE_KNIGHT] = knight_number_of_possible_moves,
@@ -364,4 +399,5 @@ void eval_init(void)
 {
 	init_possible_moves_table();
 	init_square_tables();
+	init_average_mvv_lva_score();
 }
